@@ -135,6 +135,7 @@ class LegNet(nn.Module):
                  pool_sizes,
                  resize_factor,
                  activation=nn.SiLU,
+                 training=False
                  ):
         super().__init__()
         assert len(pool_sizes) == len(ef_block_sizes)
@@ -175,8 +176,10 @@ class LegNet(nn.Module):
                                    nn.BatchNorm1d(out_ch * 2),
                                    activation(),
                                    nn.Linear(out_ch * 2, 1))
+        self.testing = not testing
+        self.tail = nn.Sigmoid()
             
-    def forward(self, x):
+    def forward(self, x, predict_score=True):
         x = self.stem(x)
         x = self.main(x)
         x = self.mapper(x)
@@ -184,4 +187,6 @@ class LegNet(nn.Module):
         x = x.squeeze(-1)
         x = self.head(x)
         x = x.squeeze(-1)
+        if self.testing:
+            x = self.tail(x)
         return x

@@ -17,7 +17,7 @@ mamba activate legnet
 10-fold cross-validation was used for the model training and testing. The respective script is python vikram/human_legnet/core.py which be used as follows:
 
 ```
-python core.py --model_dir <target dir to save the models checkpoint files> --data_path <experiment data tables used in study> --epoch_num <epochnum> --use_shift --reverse_augment
+python core.py --model_dir <target dir to save the models checkpoint files> --train_path <experiment data tables used in study> --epoch_num <epochnum> --use_shift --reverse_augment
 ```
 
 Please use --help for more details regarding.
@@ -30,10 +30,10 @@ To get predictions of all cross-validation models we used asb_predict.py for [AD
 
 Command-line format:
 ```
-python asb_predict.py --config <model config> --model <models dir> --asb_path <path to the ADASTRA dataset> --genome <path to human genome> --out_path <out file> --device 0 --max_shift 0
+python asb_predict.py --config <model config> --model <models dir> --asb_path <path to the ADASTRA dataset> --ref_genome <path to human ref_genome> --out_path <out file> --device 0 --max_shift 0
 ```
 ```
-python coverage_predict.py --config <model config> --model <models dir> --cov_path <path to the UDACHA dataset> --genome <path to human genome>  --out_path <out file>  --device 0 --max_shift 0
+python coverage_predict.py --config <model config> --model <models dir> --cov_path <path to the UDACHA dataset> --ref_genome <path to human ref_genome>  --out_path <out file>  --device 0 --max_shift 0
 ```
 The datasets are available in the repository, see the datasets/asb and datasets/coverage folders.
 

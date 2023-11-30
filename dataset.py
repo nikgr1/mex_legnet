@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import pandas as pd
+from Bio import SeqRecord
 
 import torch
 
@@ -15,8 +16,9 @@ class TrainSeqDatasetProb(Dataset):
                  ds: pd.DataFrame,
                  use_reverse: bool,
                  use_shift: bool,
-                 use_reverse_channel: bool,  
-                 seqsize=230,
+                 use_reverse_channel: bool,
+                 ref_genome: dict[str, SeqRecord],
+                 seqsize: int | None = None,
                  max_shift: tuple[int, int] | None = None, 
                  training=True):
         """
@@ -29,6 +31,11 @@ class TrainSeqDatasetProb(Dataset):
         seqsize : int
             Constant sequence length.
         """
+        if seqsize is None:
+            seqsize = abs(ds.iloc[0]['end'] - ds.iloc[0]['start'])
+        if max_shift is None:
+            max_shift = (0, 0)
+        
         self.training = training
 
         self.ds = ds
@@ -36,32 +43,31 @@ class TrainSeqDatasetProb(Dataset):
         self.use_reverse = use_reverse
         self.use_shift = use_shift
         self.use_reverse_channel = use_reverse_channel
-        self.forward_side = "GGCCCGCTCTAGACCTGCAGG"
-        self.reverse_side = "CACTAGAGGGTATATAATGGAAGCTCGACTTCCAGCTTGGCAATCCGGTACTGT"
-        self.seqsize = seqsize 
-        if max_shift is None:
-            self.max_shift = (0, len(self.forward_side))
-        else:
-            self.max_shift = max_shift
+        self.ref_genome = ref_genome
+        self.seqsize = seqsize
+        self.max_shift = max_shift
             
     def transform(self, x):
         assert isinstance(x, str)
         return self.totensor(x)
     
     def __getitem__(self, i):
-
-        seq = self.ds.seq.values[i]
+        entry = self.ds.iloc[i]
+        chrom =  entry.chr
+        start = entry.start
+        end =  entry.end
         
         if self.use_shift:
-            shift = torch.randint(size=(1,), low=-self.max_shift[0], high=self.max_shift[1] + 1).item()
-            if shift < 0: # use forward primer
-                seq = seq[:shift]
-                seq = self.forward_side[shift:] + seq
-            elif shift > 0:
-                seq = seq[shift:]
-                seq = seq + self.reverse_side[:shift]
-            else: # shift = 0
-                pass # nothing to do
+            # we need to determine such max&min values for shift that it won't ruin the slicing step
+            lowest = max(0, start-self.max_shift[0]) - start
+            highest = min(len(ref_genome[chrom]), end+self.max_shift[1]) - end
+            # calc shift
+            shift = torch.randint(size=(1,), low=lowest, high=highest + 1).item()
+            # do shift
+            start = start + shift
+            end = end + shift
+        # slice
+        seq = str(self.ref_genome[chrom][start:end].seq).upper()
 
         if self.use_reverse:
             r = torch.rand((1,)).item()
@@ -103,8 +109,9 @@ class TestSeqDatasetProb(Dataset):
                  ds: pd.DataFrame,
                  reverse: bool,
                  shift: int,  
-                 use_reverse_channel: bool = True,
-                 seqsize=230):
+                 ref_genome: dict[str, SeqRecord],
+                 seqsize: int | None = None,
+                 use_reverse_channel: bool = True):
         """
         Parameters
         ----------
@@ -115,15 +122,16 @@ class TestSeqDatasetProb(Dataset):
         seqsize : int
             Constant sequence length.
         """
+        if seqsize is None:
+            seqsize = abs(ds.iloc[0]['end'] - ds.iloc[0]['start'])
        
         self.ds = ds
         self.totensor = Seq2Tensor()
         self.use_reverse_channel = use_reverse_channel 
         self.reverse = reverse
         self.shift = shift
-        self.forward_side = "GGCCCGCTCTAGACCTGCAGG"
-        self.reverse_side = "CACTAGAGGGTATATAATGGAAGCTCGACTTCCAGCTTGGCAATCCGGTACTGT"
-        self.seqsize = seqsize 
+        self.ref_genome = ref_genome
+        self.seqsize = seqsize
 
         
     def transform(self, x):
@@ -143,16 +151,18 @@ class TestSeqDatasetProb(Dataset):
         bin: float 
             Training expression value
         """
-        seq = self.ds.seq.values[i]
-        
-        if self.shift < 0: # use forward primer
-            seq = seq[:self.shift]
-            seq = self.forward_side[self.shift:] + seq
-        elif self.shift > 0:
-            seq = seq[self.shift:]
-            seq = seq + self.reverse_side[:self.shift]
-        else: # shift = 0
-            pass # nothing to do
+        entry = self.ds.iloc[i]
+        chrom =  entry.chr
+        start = entry.start
+        end = entry.end
+        # we need to use such shift that it won't ruin the slicing step
+        shift = max(0, start+shift) - start
+        shift = min(len(ref_genome[chrom]), end+shift) - end
+        # do shift
+        start = start + shift
+        end = end + shift
+        # slice
+        seq = str(self.ref_genome[chrom][start:end].seq).upper()
 
         
         if self.reverse:

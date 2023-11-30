@@ -6,6 +6,7 @@ import torch.nn as nn
 from model import LegNet
 from dataclasses import dataclass, asdict
 from pathlib import Path
+from argparse import ArgumentParser
 from dataclasses import InitVar
 
 @dataclass
@@ -23,7 +24,10 @@ class TrainingConfig:
     max_lr: float
     weight_decay: float
     model_dir: str 
-    data_path: str
+    train_path: str
+    ref_genome_path: str
+    valid_path: str
+    test_path: str | None
     epoch_num: int 
     device: int  
     seed: int
@@ -35,6 +39,10 @@ class TrainingConfig:
     def __post_init__(self, training: bool):
         self.check_params()
         model_dir = Path(self.model_dir)
+        train_path = Path(self.train_path)
+        valid_path = Path(self.valid_path)
+        if test_path is not None:
+            test_path = Path(self.test_path)
         if training:
             model_dir.mkdir(exist_ok=True,
                             parents=True)
@@ -75,6 +83,21 @@ class TrainingConfig:
             dt = json.load(inp)
         dt['training'] = training
         return cls.from_dict(dt)
+    
+    @classmethod
+    def from_args(cls, parser: ArgumentParser, training: bool = False) -> 'TrainingConfig':
+        # config_values = {}
+        # if config_parser is not None:
+        #     config_args = config_parser.parse_args()
+        #     print(config_args.config)
+        #     if config_args.config is not None:
+        #         with open(config_args.config, 'r') as inp:
+        #             config_values = json.load(inp)
+        # print(Namespace(**config_values))
+        # args = vars(parser.parse_args(namespace=Namespace(**config_values)))
+        args = vars(parser.parse_args())
+        args['training'] = training
+        return cls.from_dict(args)
   
     @property
     def in_ch(self) -> int:
@@ -87,4 +110,5 @@ class TrainingConfig:
                    ef_ks=self.ef_ks,
                    ef_block_sizes=self.ef_block_sizes,  
                    resize_factor=self.resize_factor,
-                   pool_sizes=self.pool_sizes)
+                   pool_sizes=self.pool_sizes,
+                   training=self.training)

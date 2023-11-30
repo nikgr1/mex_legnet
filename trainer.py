@@ -4,7 +4,7 @@ import torch.nn as nn
 
 
 from model import initialize_weights
-from torchmetrics import PearsonCorrCoef
+from torchmetrics import AUROC
 
 from training_config import TrainingConfig
 
@@ -15,32 +15,49 @@ class LitModel(pl.LightningModule):
         self.tr_cfg = tr_cfg
         self.model = self.tr_cfg.get_model()
         self.model.apply(initialize_weights)
-        self.loss = nn.MSELoss() 
-        self.val_pearson = PearsonCorrCoef()
+        self.loss = nn.BCEWithLogitsLoss() 
+        self.metric = AUROC(task="binary")
+        self.metric_name = 'auroc'
         
     def training_step(self, batch, _):
         X, y = batch
-        y_hat = self.model(X)
+        y_pred = self.model(X)
 
-        loss = self.loss(y_hat, y)
+        loss = self.loss(y_pred, y)
         
-        self.log("train_loss", loss, prog_bar=True,  on_step=False, on_epoch=True,  logger=True)
+        self.log("train_loss", 
+                 loss, 
+                 prog_bar=True, 
+                 on_step=False, 
+                 on_epoch=True, 
+                 logger=True)
         return loss
     
     def validation_step(self, batch, _):
         x, y = batch
-        y_hat = self.model(x)
-        loss = self.loss(y_hat, y)
-        self.log('val_loss', loss, on_step=False, on_epoch=True)
-        self.val_pearson(y_hat, y)
-        self.log("val_pearson", self.val_pearson, on_epoch=True)
+        y_pred = self.model(x)
+        loss = self.loss(y_pred, y)
+        self.log('val_loss',
+                 loss, 
+                 on_step=False, 
+                 on_epoch=True)
+        self.metric(y_pred, y)
+        self.log('val_' + self.metric_name, 
+                 self.metric, 
+                 on_epoch=True)
     
     def test_step(self, batch, _):
         x, y = batch
-        y_hat = self.model(x)
-        loss = self.loss(y_hat, y)
+        y_pred = self.model(x)
+        loss = self.loss(y_pred, y)
         self.log('test_loss', 
                  loss, 
+                 prog_bar=True, 
+                 on_step=False,
+                 on_epoch=True)
+        self.metric(y_pred, y)
+        self.log('test_' + self.metric_name, 
+                 self.metric, 
                  prog_bar=True, 
                  on_step=False,
                  on_epoch=True)
@@ -50,8 +67,8 @@ class LitModel(pl.LightningModule):
             x, _ = batch 
         else:
             x = batch
-        y_hat = self.model(x)
-        return y_hat
+        y_pred = self.model(x)
+        return y_pred
         
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), 

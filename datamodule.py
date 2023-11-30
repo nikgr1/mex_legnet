@@ -7,23 +7,30 @@ from dataset import TrainSeqDatasetProb, TestSeqDatasetProb
 from training_config import TrainingConfig
 
 class SeqDataModule(pl.LightningDataModule):
-    def __init__(self, 
-                 val_fold: int,
-                 test_fold: int,
+    def __init__(self,
                  cfg: TrainingConfig):
         super().__init__()
         self.cfg = cfg
         
-        df = pd.read_csv(self.cfg.data_path, 
-                 sep='\t')
-        df.columns = ['seq_id', 'seq', 'mean_value', 'fold_num', 'rev'][0:len(df.columns)]
+        vals_by_seq_types = {'foreigns': 0, 'positives': 1}
+        paths_by_splits = {'train': self.cfg.train_path, 
+                           'val': self.cfg.valid_path,
+                           'test': self.cfg.test_path}
+        dfs = {k:list() for k in paths_by_splits.keys()}
         
-        if "rev" in df.columns:
-            df = df[df.rev == 0]
-            
-        self.train = df[~df.fold_num.isin([val_fold, test_fold])]
-        self.valid = df[df.fold_num == val_fold]
-        self.test = df[df.fold_num == test_fold]
+        for split in paths_by_splits.keys():
+            for seq_type in vals_by_seq_types.keys():
+                df = pd.read_csv(paths_by_splits[split] / (seq_type + '.bed'),
+                                 sep='\t')
+                df.columns = ['chr', 'start', 'end']
+                df['class'] = vals_by_seq_types[seq_type]
+                dfs[split].append(df)
+        
+        self.train = pd.concat(dfs['train'])
+        self.valid = pd.concat(dfs['val'])
+        self.test = pd.concat(dfs['test'])
+        self.ref_genome = SeqIO.to_dict(train_cfg.ref_genome_path, 'fasta')
+        
         
     def train_dataloader(self):
         
@@ -31,7 +38,8 @@ class SeqDataModule(pl.LightningDataModule):
                                    use_reverse=self.cfg.reverse_augment,
                                    use_reverse_channel=self.cfg.use_reverse_channel,
                                    use_shift=self.cfg.use_shift,
-                                   max_shift=self.cfg.max_shift)
+                                   max_shift=self.cfg.max_shift,
+                                   ref_genome=self.ref_genome)
         
         return DataLoader(train_ds, 
                           batch_size=self.cfg.train_batch_size,
@@ -42,7 +50,8 @@ class SeqDataModule(pl.LightningDataModule):
         valid_ds = TestSeqDatasetProb(self.valid, 
                                   use_reverse_channel=self.cfg.use_reverse_channel,
                                   shift=0,
-                                  reverse=False)
+                                  reverse=False,
+                                  ref_genome=self.ref_genome)
 
         return DataLoader(valid_ds, 
                           batch_size=self.cfg.valid_batch_size,
@@ -54,7 +63,8 @@ class SeqDataModule(pl.LightningDataModule):
         test_ds = TestSeqDatasetProb(self.test,
                                   use_reverse_channel=self.cfg.use_reverse_channel,
                                   shift=0,
-                                  reverse=False)
+                                  reverse=False,
+                                  ref_genome=self.ref_genome)
         test_dl =  DataLoader(test_ds,
                               batch_size=self.cfg.valid_batch_size,
                               num_workers=self.cfg.num_workers,
@@ -64,7 +74,8 @@ class SeqDataModule(pl.LightningDataModule):
             rev_test_ds = TestSeqDatasetProb(self.test,
                                   use_reverse_channel=self.cfg.use_reverse_channel,
                                   shift=0,
-                                  reverse=True)
+                                  reverse=True,
+                                  ref_genome=self.ref_genome)
             rev_test_dl =  DataLoader(rev_test_ds,
                               batch_size=self.cfg.valid_batch_size,
                               num_workers=self.cfg.num_workers,
