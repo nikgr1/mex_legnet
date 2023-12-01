@@ -7,7 +7,6 @@ from model import LegNet
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from argparse import ArgumentParser
-from dataclasses import InitVar
 
 @dataclass
 class TrainingConfig: 
@@ -27,23 +26,18 @@ class TrainingConfig:
     train_path: str
     ref_genome_path: str
     valid_path: str
-    test_path: str | None
     epoch_num: int 
     device: int  
     seed: int
     train_batch_size: int
     valid_batch_size: int
     num_workers: int
-    training: InitVar[bool] 
+    training: bool
+    test_path: str | None = None
     
-    def __post_init__(self, training: bool):
+    def __post_init__(self):
         self.check_params()
-        model_dir = Path(self.model_dir)
-        train_path = Path(self.train_path)
-        valid_path = Path(self.valid_path)
-        if test_path is not None:
-            test_path = Path(self.test_path)
-        if training:
+        if self.training:
             model_dir.mkdir(exist_ok=True,
                             parents=True)
             self.dump()

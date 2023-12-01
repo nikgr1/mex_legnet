@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from dataset import TrainSeqDatasetProb, TestSeqDatasetProb
 
 from training_config import TrainingConfig
+from pathlib import Path
 
 class SeqDataModule(pl.LightningDataModule):
     def __init__(self,
@@ -20,7 +21,7 @@ class SeqDataModule(pl.LightningDataModule):
         
         for split in paths_by_splits.keys():
             for seq_type in vals_by_seq_types.keys():
-                df = pd.read_csv(paths_by_splits[split] / (seq_type + '.bed'),
+                df = pd.read_csv(Path(paths_by_splits[split]) / (seq_type + '.bed'),
                                  sep='\t')
                 df.columns = ['chr', 'start', 'end']
                 df['class'] = vals_by_seq_types[seq_type]
