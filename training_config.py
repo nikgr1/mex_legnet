@@ -37,6 +37,7 @@ class TrainingConfig:
     
     def __post_init__(self):
         self.check_params()
+        model_dir = Path(self.model_dir)
         if self.training:
             model_dir.mkdir(exist_ok=True,
                             parents=True)
@@ -67,7 +68,11 @@ class TrainingConfig:
             json.dump(dt, out, indent=4)
   
     @classmethod
-    def from_dict(cls, dt: dict) -> 'TrainingConfig':
+    def from_dict(cls, dt: dict, training: bool | None = None) -> 'TrainingConfig':
+        if training is not None:
+            _dt = dict(dt)
+            _dt['training'] = training
+            return cls(**_dt)
         return cls(**dt)
     
           
@@ -77,21 +82,6 @@ class TrainingConfig:
             dt = json.load(inp)
         dt['training'] = training
         return cls.from_dict(dt)
-    
-    @classmethod
-    def from_args(cls, parser: ArgumentParser, training: bool = False) -> 'TrainingConfig':
-        # config_values = {}
-        # if config_parser is not None:
-        #     config_args = config_parser.parse_args()
-        #     print(config_args.config)
-        #     if config_args.config is not None:
-        #         with open(config_args.config, 'r') as inp:
-        #             config_values = json.load(inp)
-        # print(Namespace(**config_values))
-        # args = vars(parser.parse_args(namespace=Namespace(**config_values)))
-        args = vars(parser.parse_args())
-        args['training'] = training
-        return cls.from_dict(args)
   
     @property
     def in_ch(self) -> int:

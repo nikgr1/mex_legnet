@@ -97,8 +97,9 @@ valid_args.add_argument("--valid_batch_size",
 valid_args.add_argument("--valid_path", 
                             type=str, 
                             required=True)
-
-train_cfg = TrainingConfig.from_args(parser)
+args = parser.parse_args()
+print(vars(args))
+train_cfg = TrainingConfig.from_dict(vars(args), training=True)
 
 print(train_cfg)
 

@@ -98,7 +98,7 @@ class TrainSeqDatasetProb(Dataset):
         return X, mean.astype(np.float32)
     
     def __len__(self):
-        return len(self.ds.seq)
+        return self.seqsize
     
     
 class TestSeqDatasetProb(Dataset):
@@ -190,6 +190,6 @@ class TestSeqDatasetProb(Dataset):
         return X, mean.astype(np.float32)
     
     def __len__(self):
-        return len(self.ds.seq)
+        return self.seqsize
 
 

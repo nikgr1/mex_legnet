@@ -6,6 +6,7 @@ from dataset import TrainSeqDatasetProb, TestSeqDatasetProb
 
 from training_config import TrainingConfig
 from pathlib import Path
+from Bio import SeqIO
 
 class SeqDataModule(pl.LightningDataModule):
     def __init__(self,
@@ -14,23 +15,32 @@ class SeqDataModule(pl.LightningDataModule):
         self.cfg = cfg
         
         vals_by_seq_types = {'foreigns': 0, 'positives': 1}
-        paths_by_splits = {'train': self.cfg.train_path, 
-                           'val': self.cfg.valid_path,
-                           'test': self.cfg.test_path}
+        paths_by_splits = {'train': self.cfg.train_path}
+        print(self.cfg.training)
+        if self.cfg.training:
+            paths_by_splits['val'] = self.cfg.valid_path
+        else:
+            paths_by_splits['test'] = self.cfg.test_path
         dfs = {k:list() for k in paths_by_splits.keys()}
-        
+        columns = ['chr', 'start', 'end']
         for split in paths_by_splits.keys():
             for seq_type in vals_by_seq_types.keys():
+                print(split, paths_by_splits[split], seq_type)
                 df = pd.read_csv(Path(paths_by_splits[split]) / (seq_type + '.bed'),
+                                 usecols=range(3),
                                  sep='\t')
-                df.columns = ['chr', 'start', 'end']
+                df.columns = columns
                 df['class'] = vals_by_seq_types[seq_type]
                 dfs[split].append(df)
         
         self.train = pd.concat(dfs['train'])
-        self.valid = pd.concat(dfs['val'])
-        self.test = pd.concat(dfs['test'])
-        self.ref_genome = SeqIO.to_dict(train_cfg.ref_genome_path, 'fasta')
+        if self.cfg.training:
+            self.valid = pd.concat(dfs['val'])
+            self.test = pd.DataFrame(columns=columns)
+        else:
+            self.test = pd.concat(dfs['test'])
+            self.valid = pd.DataFrame(columns=columns)
+        self.ref_genome = SeqIO.to_dict(SeqIO.parse(self.cfg.ref_genome_path, 'fasta'))
         
         
     def train_dataloader(self):
