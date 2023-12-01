@@ -22,12 +22,6 @@ general = parser.add_argument_group('general args',
 general.add_argument("--model_dir",
                      type=str,
                      required=True)
-general.add_argument("--train_path", 
-                     type=str, 
-                     required=True)
-general.add_argument("--ref_genome_path", 
-                     type=str, 
-                     required=True)
 general.add_argument("--device", 
                      type=int,
                      default=0)
@@ -85,22 +79,31 @@ scheduler_args.add_argument("--weight_decay",
 scheduler_args.add_argument("--epoch_num",
                             type=int,
                             default=20)
-scheduler_args.add_argument("--train_batch_size",
-                            type=int, 
-                            default=1024)
 
-valid_args =  parser.add_argument_group('valid arguments',
-                                        'Validation arguments')
-valid_args.add_argument("--valid_batch_size",
-                            type=int,
-                            default=1024)
-valid_args.add_argument("--valid_path", 
-                            type=str, 
-                            required=True)
+data_args =  parser.add_argument_group('data arguments',
+                                        'Data arguments')
+data_args.add_argument("--valid_batch_size",
+                       type=int,
+                       default=1024)
+data_args.add_argument("--valid_path", 
+                       type=str, 
+                       required=True)
+data_args.add_argument("--train_path", 
+                       type=str, 
+                       required=True)
+data_args.add_argument("--train_batch_size",
+                       type=int, 
+                       default=1024)
+data_args.add_argument("--test_path", 
+                       type=str, 
+                       required=True)
+data_args.add_argument("--ref_genome_path", 
+                       type=str, 
+                       required=True)
+
+
 args = parser.parse_args()
-print(vars(args))
 train_cfg = TrainingConfig.from_dict(vars(args), training=True)
-
 print(train_cfg)
 
 model_dir = Path(train_cfg.model_dir)
@@ -132,9 +135,9 @@ last_checkpoint_callback = pl.callbacks.ModelCheckpoint(   #type: ignore
 
 best_checkpoint_callback = ModelCheckpoint(
     save_top_k=1,
-    monitor="val_pearson",
+    monitor="val_auroc",
     mode="max",
-    filename="pearson-{epoch:02d}-{val_pearson:.2f}",
+    filename="auroc-{epoch:02d}-{auroc:.2f}",
 )
 
 trainer = pl.Trainer(accelerator='gpu',

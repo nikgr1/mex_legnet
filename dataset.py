@@ -60,7 +60,7 @@ class TrainSeqDatasetProb(Dataset):
         if self.use_shift:
             # we need to determine such max&min values for shift that it won't ruin the slicing step
             lowest = max(0, start-self.max_shift[0]) - start
-            highest = min(len(ref_genome[chrom]), end+self.max_shift[1]) - end
+            highest = min(len(self.ref_genome[chrom]), end+self.max_shift[1]) - end
             # calc shift
             shift = torch.randint(size=(1,), low=lowest, high=highest + 1).item()
             # do shift
@@ -93,12 +93,12 @@ class TrainSeqDatasetProb(Dataset):
         else:
             X = seq
             
-        mean = self.ds.mean_value.values[i]
+        class_ = self.ds.class_.values[i]
         
-        return X, mean.astype(np.float32)
+        return X, class_.astype(np.float32)
     
     def __len__(self):
-        return self.seqsize
+        return len(self.ds.start)
     
     
 class TestSeqDatasetProb(Dataset):
@@ -156,8 +156,8 @@ class TestSeqDatasetProb(Dataset):
         start = entry.start
         end = entry.end
         # we need to use such shift that it won't ruin the slicing step
-        shift = max(0, start+shift) - start
-        shift = min(len(ref_genome[chrom]), end+shift) - end
+        shift = max(0, start+self.shift) - start
+        shift = min(len(self.ref_genome[chrom]), end+shift) - end
         # do shift
         start = start + shift
         end = end + shift
@@ -185,11 +185,11 @@ class TestSeqDatasetProb(Dataset):
         else:
             X = seq
             
-        mean = self.ds.mean_value.values[i]
+        class_ = self.ds.class_.values[i]
         
-        return X, mean.astype(np.float32)
+        return X, class_.astype(np.float32)
     
     def __len__(self):
-        return self.seqsize
+        return len(self.ds.start)
 
 

@@ -13,34 +13,36 @@ class SeqDataModule(pl.LightningDataModule):
                  cfg: TrainingConfig):
         super().__init__()
         self.cfg = cfg
+        splits = ('train', 'val', 'test')
+        paths = (self.cfg.train_path, 
+                 self.cfg.valid_path, 
+                 self.cfg.test_path)
+        self.paths = dict(zip(splits, paths))
+        self.ds = {}
         
         vals_by_seq_types = {'foreigns': 0, 'positives': 1}
-        paths_by_splits = {'train': self.cfg.train_path}
-        print(self.cfg.training)
-        if self.cfg.training:
-            paths_by_splits['val'] = self.cfg.valid_path
-        else:
-            paths_by_splits['test'] = self.cfg.test_path
-        dfs = {k:list() for k in paths_by_splits.keys()}
+        dfs2concat = {split:list() for split in self.splits}
         columns = ['chr', 'start', 'end']
-        for split in paths_by_splits.keys():
-            for seq_type in vals_by_seq_types.keys():
-                print(split, paths_by_splits[split], seq_type)
-                df = pd.read_csv(Path(paths_by_splits[split]) / (seq_type + '.bed'),
+        for split, path in self.paths.items():
+            for seq_type, value in vals_by_seq_types.items():
+                df = pd.read_csv(Path(path) / (seq_type + '.bed'),
                                  usecols=range(3),
                                  sep='\t')
                 df.columns = columns
-                df['class'] = vals_by_seq_types[seq_type]
-                dfs[split].append(df)
-        
-        self.train = pd.concat(dfs['train'])
-        if self.cfg.training:
-            self.valid = pd.concat(dfs['val'])
-            self.test = pd.DataFrame(columns=columns)
-        else:
-            self.test = pd.concat(dfs['test'])
-            self.valid = pd.DataFrame(columns=columns)
+                df['class_'] = value
+                dfs2concat[split].append(df)
+            
+            self.ds[split] = pd.concat(dfs2concat[split])
+            
+        self.ds_statistics()
         self.ref_genome = SeqIO.to_dict(SeqIO.parse(self.cfg.ref_genome_path, 'fasta'))
+    
+    def ds_statistics(self):
+        print('Dataset statistics')
+        for split, ds in self.ds.items():
+            print('Split:', split)
+            s = ds['class_'].value_counts() / len(ds['class_'])
+            print('\t'.join(f'{i}: {v:.2f}' for i, v in s.items()))
         
         
     def train_dataloader(self):
@@ -72,10 +74,10 @@ class SeqDataModule(pl.LightningDataModule):
     def dls_for_predictions(self):
         
         test_ds = TestSeqDatasetProb(self.test,
-                                  use_reverse_channel=self.cfg.use_reverse_channel,
-                                  shift=0,
-                                  reverse=False,
-                                  ref_genome=self.ref_genome)
+                                     use_reverse_channel=self.cfg.use_reverse_channel,
+                                     shift=0,
+                                     reverse=False,
+                                     ref_genome=self.ref_genome)
         test_dl =  DataLoader(test_ds,
                               batch_size=self.cfg.valid_batch_size,
                               num_workers=self.cfg.num_workers,
@@ -83,12 +85,12 @@ class SeqDataModule(pl.LightningDataModule):
         yield "forw_pred", test_dl
         if self.cfg.reverse_augment:
             rev_test_ds = TestSeqDatasetProb(self.test,
-                                  use_reverse_channel=self.cfg.use_reverse_channel,
-                                  shift=0,
-                                  reverse=True,
-                                  ref_genome=self.ref_genome)
+                                             use_reverse_channel=self.cfg.use_reverse_channel,
+                                             shift=0,
+                                             reverse=True,
+                                             ref_genome=self.ref_genome)
             rev_test_dl =  DataLoader(rev_test_ds,
-                              batch_size=self.cfg.valid_batch_size,
-                              num_workers=self.cfg.num_workers,
-                              shuffle=False)
+                                      batch_size=self.cfg.valid_batch_size,
+                                      num_workers=self.cfg.num_workers,
+                                      shuffle=False)
             yield "rev_pred", rev_test_dl

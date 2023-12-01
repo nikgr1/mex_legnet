@@ -18,6 +18,7 @@ class LitModel(pl.LightningModule):
         self.loss = nn.BCEWithLogitsLoss() 
         self.metric = AUROC(task="binary")
         self.metric_name = 'auroc'
+        self.sigmoid = nn.Sigmoid()
         
     def training_step(self, batch, _):
         X, y = batch
@@ -41,7 +42,8 @@ class LitModel(pl.LightningModule):
                  loss, 
                  on_step=False, 
                  on_epoch=True)
-        self.metric(y_pred, y)
+        y_prob = self.sigmoid(y_pred)
+        self.metric(y_prob, y)
         self.log('val_' + self.metric_name, 
                  self.metric, 
                  on_epoch=True)
@@ -55,7 +57,8 @@ class LitModel(pl.LightningModule):
                  prog_bar=True, 
                  on_step=False,
                  on_epoch=True)
-        self.metric(y_pred, y)
+        y_prob = self.sigmoid(y_pred)
+        self.metric(y_prob, y)
         self.log('test_' + self.metric_name, 
                  self.metric, 
                  prog_bar=True, 
@@ -68,7 +71,8 @@ class LitModel(pl.LightningModule):
         else:
             x = batch
         y_pred = self.model(x)
-        return y_pred
+        y_prob = self.sigmoid(y_pred)
+        return y_prob
         
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), 

@@ -26,6 +26,7 @@ class TrainingConfig:
     train_path: str
     ref_genome_path: str
     valid_path: str
+    test_path: str
     epoch_num: int 
     device: int  
     seed: int
@@ -33,7 +34,6 @@ class TrainingConfig:
     valid_batch_size: int
     num_workers: int
     training: bool
-    test_path: str | None = None
     
     def __post_init__(self):
         self.check_params()
@@ -94,5 +94,4 @@ class TrainingConfig:
                    ef_ks=self.ef_ks,
                    ef_block_sizes=self.ef_block_sizes,  
                    resize_factor=self.resize_factor,
-                   pool_sizes=self.pool_sizes,
-                   training=self.training)
+                   pool_sizes=self.pool_sizes)
