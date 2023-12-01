@@ -5,6 +5,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import argparse
 
 def set_global_seed(seed: int) -> None:
     """
@@ -99,3 +100,10 @@ def encode_seq(seq: str):
     code[code[:, 4] == 1] = 0.25 # encode Ns with .25
          
     return code[:, :4].transpose(0, 1)
+
+class ArgumentParser(argparse.ArgumentParser):
+    def convert_arg_line_to_args(self, arg_line):
+        for arg in arg_line.split():
+            if not arg.strip():
+                continue
+            yield arg

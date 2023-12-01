@@ -21,7 +21,7 @@ class SeqDataModule(pl.LightningDataModule):
         self.ds = {}
         
         vals_by_seq_types = {'foreigns': 0, 'positives': 1}
-        dfs2concat = {split:list() for split in self.splits}
+        dfs2concat = {split:list() for split in splits}
         columns = ['chr', 'start', 'end']
         for split, path in self.paths.items():
             for seq_type, value in vals_by_seq_types.items():
@@ -40,14 +40,15 @@ class SeqDataModule(pl.LightningDataModule):
     def ds_statistics(self):
         print('Dataset statistics')
         for split, ds in self.ds.items():
-            print('Split:', split)
+            count = len(ds['class_'])
+            print('Split:', split, count, 'objects')
             s = ds['class_'].value_counts() / len(ds['class_'])
-            print('\t'.join(f'{i}: {v:.2f}' for i, v in s.items()))
+            print('\t| '.join(f'{i}: {v*100:.2f} %' for i, v in s.items()))
         
         
     def train_dataloader(self):
         
-        train_ds =  TrainSeqDatasetProb(self.train,
+        train_ds =  TrainSeqDatasetProb(self.ds['train'],
                                    use_reverse=self.cfg.reverse_augment,
                                    use_reverse_channel=self.cfg.use_reverse_channel,
                                    use_shift=self.cfg.use_shift,
@@ -60,7 +61,7 @@ class SeqDataModule(pl.LightningDataModule):
                           shuffle=True) 
     
     def val_dataloader(self):
-        valid_ds = TestSeqDatasetProb(self.valid, 
+        valid_ds = TestSeqDatasetProb(self.ds['val'], 
                                   use_reverse_channel=self.cfg.use_reverse_channel,
                                   shift=0,
                                   reverse=False,
@@ -73,7 +74,7 @@ class SeqDataModule(pl.LightningDataModule):
         
     def dls_for_predictions(self):
         
-        test_ds = TestSeqDatasetProb(self.test,
+        test_ds = TestSeqDatasetProb(self.ds['test'],
                                      use_reverse_channel=self.cfg.use_reverse_channel,
                                      shift=0,
                                      reverse=False,
@@ -84,7 +85,7 @@ class SeqDataModule(pl.LightningDataModule):
                               shuffle=False)
         yield "forw_pred", test_dl
         if self.cfg.reverse_augment:
-            rev_test_ds = TestSeqDatasetProb(self.test,
+            rev_test_ds = TestSeqDatasetProb(self.ds['test'],
                                              use_reverse_channel=self.cfg.use_reverse_channel,
                                              shift=0,
                                              reverse=True,

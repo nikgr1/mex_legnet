@@ -7,15 +7,16 @@ import lightning.pytorch as pl
 from datamodule import SeqDataModule
 from test_predict import save_predict
 from trainer import LitModel, TrainingConfig
-from utils import set_global_seed, parameter_count
+from utils import set_global_seed, parameter_count, ArgumentParser
 from lightning.pytorch.callbacks import ModelCheckpoint
 from pathlib import Path 
 from Bio import SeqIO
 
 
 
-import argparse 
-parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+# import argparse 
+parser = ArgumentParser(fromfile_prefix_chars='@')
+# parser.convert_arg_line_to_args = convert_arg_line_to_args
 
 general = parser.add_argument_group('general args', 
                                     'general_argumens')

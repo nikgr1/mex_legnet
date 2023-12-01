@@ -13,7 +13,7 @@ def save_predict(trainer: pl.Trainer,
                  save_dir: Path,
                  pref: str = ""):
     
-    df = data.test.copy()
+    df = data.ds['test'].copy()
     
     for pred_name, dl in data.dls_for_predictions():
         
