@@ -99,7 +99,12 @@ data_args.add_argument("--test_path",
                        required=True)
 data_args.add_argument("--ref_genome_path", 
                        type=str, 
-                       required=True)
+                       required=True),
+data_args.add_argument('--negatives', 
+                       choices=('foreigns', 'random', 'shades'), 
+                       default=['foreigns'], 
+                       nargs='*',
+                       type=str)
 
 
 args = parser.parse_args()

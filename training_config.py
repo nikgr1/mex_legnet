@@ -34,6 +34,7 @@ class TrainingConfig:
     valid_batch_size: int
     num_workers: int
     training: bool
+    negatives: list[str]
     
     def __post_init__(self):
         self.check_params()

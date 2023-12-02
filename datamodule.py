@@ -20,7 +20,9 @@ class SeqDataModule(pl.LightningDataModule):
         self.paths = dict(zip(splits, paths))
         self.ds = {}
         
-        vals_by_seq_types = {'foreigns': 0, 'positives': 1}
+        vals_by_seq_types = {'positives': 1}
+        for negative in cfg.negatives:
+            vals_by_seq_types[negative] = 0
         dfs2concat = {split:list() for split in splits}
         columns = ['chr', 'start', 'end']
         for split, path in self.paths.items():
@@ -39,11 +41,12 @@ class SeqDataModule(pl.LightningDataModule):
     
     def ds_statistics(self):
         print('Dataset statistics')
+        print('Negatives:', ', '.join(self.cfg.negatives))
         for split, ds in self.ds.items():
             count = len(ds['class_'])
             print('Split:', split, count, 'objects')
-            s = ds['class_'].value_counts() / len(ds['class_'])
-            print('\t| '.join(f'{i}: {v*100:.2f} %' for i, v in s.items()))
+            s = ds['class_'].value_counts()
+            print('\t| '.join(f'{i}: {v} ({v*100/count:.2f} %)' for i, v in s.items()))
         
         
     def train_dataloader(self):
