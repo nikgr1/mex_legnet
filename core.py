@@ -10,7 +10,6 @@ from trainer import LitModel, TrainingConfig
 from utils import set_global_seed, parameter_count, ArgumentParser
 from lightning.pytorch.callbacks import ModelCheckpoint
 from pathlib import Path 
-from Bio import SeqIO
 
 
 
@@ -142,13 +141,13 @@ best_checkpoint_callback = ModelCheckpoint(
 )
 
 trainer = pl.Trainer(accelerator='gpu',
-                    enable_checkpointing=True,
-                    devices=[train_cfg.device], 
-                    precision='16-mixed', 
-                    max_epochs=train_cfg.epoch_num,
-                    callbacks=[last_checkpoint_callback,  best_checkpoint_callback],
-                    gradient_clip_val=1,
-                    default_root_dir=dump_dir)
+                     enable_checkpointing=True,
+                     devices=[train_cfg.device], 
+                     precision='16-mixed', 
+                     max_epochs=train_cfg.epoch_num,
+                     callbacks=[last_checkpoint_callback,  best_checkpoint_callback],
+                     gradient_clip_val=1,
+                     default_root_dir=dump_dir)
 
 trainer.fit(model, 
             datamodule=data)

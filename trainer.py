@@ -13,6 +13,7 @@ class LitModel(pl.LightningModule):
         super().__init__()
         
         self.tr_cfg = tr_cfg
+        self.max_lr=self.tr_cfg.max_lr
         self.model = self.tr_cfg.get_model()
         self.model.apply(initialize_weights)
         self.loss = nn.BCEWithLogitsLoss() 
