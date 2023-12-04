@@ -61,7 +61,8 @@ class SeqDataModule(pl.LightningDataModule):
         return DataLoader(train_ds, 
                           batch_size=self.cfg.train_batch_size,
                           num_workers=self.cfg.num_workers,
-                          shuffle=True) 
+                          shuffle=True,
+                          drop_last=True) 
     
     def val_dataloader(self):
         valid_ds = TestSeqDatasetProb(self.ds['val'], 
@@ -73,7 +74,8 @@ class SeqDataModule(pl.LightningDataModule):
         return DataLoader(valid_ds, 
                           batch_size=self.cfg.valid_batch_size,
                           num_workers=self.cfg.num_workers,
-                          shuffle=False)
+                          shuffle=False,
+                          drop_last=True)
         
     def dls_for_predictions(self):
         
@@ -85,7 +87,8 @@ class SeqDataModule(pl.LightningDataModule):
         test_dl =  DataLoader(test_ds,
                               batch_size=self.cfg.valid_batch_size,
                               num_workers=self.cfg.num_workers,
-                              shuffle=False)
+                              shuffle=False,
+                              drop_last=True)
         yield "forw_pred", test_dl
         if self.cfg.reverse_augment:
             rev_test_ds = TestSeqDatasetProb(self.ds['test'],
@@ -96,5 +99,6 @@ class SeqDataModule(pl.LightningDataModule):
             rev_test_dl =  DataLoader(rev_test_ds,
                                       batch_size=self.cfg.valid_batch_size,
                                       num_workers=self.cfg.num_workers,
-                                      shuffle=False)
+                                      shuffle=False,
+                                      drop_last=True)
             yield "rev_pred", rev_test_dl
