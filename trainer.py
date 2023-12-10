@@ -2,11 +2,15 @@ import lightning.pytorch as pl
 import torch
 import torch.nn as nn
 
-
 from model import initialize_weights
 from torchmetrics import AUROC
 
+from pathlib import Path 
+import pandas as pd
+import numpy as np
+
 from training_config import TrainingConfig
+from utils import CODES, get_weigths_from_pwm
 
 class LitModel(pl.LightningModule):
     def __init__(self, tr_cfg: TrainingConfig):
@@ -16,10 +20,51 @@ class LitModel(pl.LightningModule):
         self.max_lr=self.tr_cfg.max_lr
         self.model = self.tr_cfg.get_model()
         self.model.apply(initialize_weights)
+        self.initialize_stem_with_pwms()
+        if self.tr_cfg.pwms_freeze:
+            print('Freezing stem conv layer')
+            for param in self.model.pwmlike_layer.parameters():
+                param.requires_grad = False
+        
         self.loss = nn.BCEWithLogitsLoss() 
         self.metric = AUROC(task="binary")
         self.metric_name = 'auroc'
         self.sigmoid = nn.Sigmoid()
+        
+    def initialize_stem_with_pwms(self):
+        if self.tr_cfg.pwms_path is None:
+            return
+        print('Initializing stem conv layer with PWMs...')
+        pwms_path = Path(self.tr_cfg.pwms_path)
+        pwm_paths = list(pwms_path.rglob('*.pwm'))
+        pwm_count = len(pwm_paths)
+        if self.tr_cfg.stem_ch < pwm_count:
+            pwm_paths = pwm_paths[:self.tr_cfg.stem_ch]
+        pwmlike_weights = self.model.pwmlike_layer.weight
+        stem_ks = self.tr_cfg.stem_ks
+        with torch.no_grad():
+            for pwm_idx, pwm_path in enumerate(pwm_paths):
+                pwm_df = pd.read_csv(pwm_path, 
+                                     sep=' ', 
+                                     skiprows=[0], 
+                                     names=['A', 'C', 'G', 'T'])
+                pwm_df = pwm_df[sorted(pwm_df.columns, key=lambda nucl: CODES[nucl])]
+                pwm_len = len(pwm_df.index)
+                
+                if self.tr_cfg.pwm_loc == 'middle':
+                    left = (stem_ks - pwm_len) // 2
+                    right = left + pwm_len
+                else:
+                    left = 0
+                    right = pwm_len
+                
+                pwmlike_weights[pwm_idx, 0:4, :] = 0
+                pwmlike_weights[pwm_idx, 0:4, left:right] = get_weigths_from_pwm(pwm_df)
+                pwmlike_weights[pwm_idx + pwm_count, 0:4, :] = 0
+                pwmlike_weights[pwm_idx + pwm_count, 0:4, stem_ks-right:stem_ks-left] = \
+                    get_weigths_from_pwm(pwm_df, rev=True, compl=True)
+        
+        
         
     def training_step(self, batch, _):
         X, y = batch

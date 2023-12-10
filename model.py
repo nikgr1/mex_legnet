@@ -174,12 +174,66 @@ class LegNet(nn.Module):
                                    nn.BatchNorm1d(out_ch * 2),
                                    activation(),
                                    nn.Linear(out_ch * 2, 1))
+        
+        self.pwmlike_layer = self.stem.block[0]
             
     def forward(self, x):
         x = self.stem(x)
         x = self.main(x)
         x = self.mapper(x)
         x =  F.adaptive_avg_pool1d(x, 1)
+        x = x.squeeze(-1)
+        x = self.head(x)
+        x = x.squeeze(-1)
+        return x
+
+
+
+class PWMBlock(nn.Module):
+    def __init__(self, in_ch, ks, out_ch=None):
+        super().__init__()
+        self.in_ch = in_ch
+        self.out_ch = self.in_ch if out_ch is None else out_ch
+        self.ks = ks
+        
+        self.block = nn.Conv1d(
+                        in_channels=self.in_ch,
+                        out_channels=self.out_ch,
+                        kernel_size=self.ks,
+                        padding='same',
+                        bias=False
+                    )
+        
+        
+    def forward(self, x):
+        return self.block(x)
+    
+class PWMNet(nn.Module):
+    def __init__(self, 
+                 in_ch,
+                 stem_ch,
+                 stem_ks,
+                 activation=nn.SiLU):
+        super().__init__()
+        
+        self.in_ch = in_ch
+        self.pwm = PWMBlock(in_ch=in_ch, 
+                            out_ch=stem_ch,
+                            ks=stem_ks)
+        
+        self.mapper = MapperBlock(in_features=stem_ch, 
+                                  out_features=stem_ch * 2)
+        self.head = nn.Sequential(nn.Linear(stem_ch * 2, stem_ch * 2),
+                                   nn.BatchNorm1d(stem_ch * 2),
+                                   activation(),
+                                   nn.Linear(stem_ch * 2, 1))
+        
+        self.pwmlike_layer = self.pwm.block
+            
+    def forward(self, x):
+        x = self.pwm(x)
+        x = self.mapper(x)
+        x =  F.adaptive_max_pool1d(x, 1)
         x = x.squeeze(-1)
         x = self.head(x)
         x = x.squeeze(-1)

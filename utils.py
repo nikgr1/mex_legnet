@@ -107,3 +107,8 @@ class ArgumentParser(argparse.ArgumentParser):
             if not arg.strip():
                 continue
             yield arg
+            
+def get_weigths_from_pwm(pwm_df: pd.DataFrame, rev=False, compl=False):
+    df = pwm_df.rename(columns=COMPL) if compl else pwm_df
+    pwm = torch.from_numpy(df.values.transpose(1, 0))
+    return pwm.flip([1]) if rev else pwm

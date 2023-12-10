@@ -100,11 +100,20 @@ data_args.add_argument("--test_path",
 data_args.add_argument("--ref_genome_path", 
                        type=str, 
                        required=True),
-data_args.add_argument('--negatives', 
+data_args.add_argument('--negatives',
+                       type=str, 
                        choices=('foreigns', 'random', 'shades'), 
                        default=['foreigns'], 
-                       nargs='*',
+                       nargs='*')
+data_args.add_argument('--pwms_path',
                        type=str)
+data_args.add_argument('--pwms_freeze',
+                       action="store_true")
+data_args.add_argument('--pwm_loc',
+                       type=str,
+                       nargs='?',
+                       const='middle',
+                       choices=('middle', 'edge'))
 
 
 args = parser.parse_args()
@@ -122,6 +131,8 @@ torch.set_float32_matmul_precision('medium') # type: ignore
 
 model = LitModel(tr_cfg=train_cfg)
 print(parameter_count(model))
+# exit()
+# print(model.model.stem.block[0].weight)
 
 data = SeqDataModule(cfg=train_cfg)
 

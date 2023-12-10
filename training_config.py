@@ -3,7 +3,7 @@ import sys
 import torch.nn as nn
 
 
-from model import LegNet
+from model import LegNet, PWMNet
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from argparse import ArgumentParser
@@ -35,6 +35,9 @@ class TrainingConfig:
     num_workers: int
     training: bool
     negatives: list[str]
+    pwms_path: str | None
+    pwms_freeze: int
+    pwm_loc: str
     
     def __post_init__(self):
         self.check_params()
@@ -89,10 +92,13 @@ class TrainingConfig:
        return 4 + self.use_reverse_channel
   
     def get_model(self) -> nn.Module:
-       return LegNet(in_ch=self.in_ch,
-                   stem_ch=self.stem_ch,
-                   stem_ks=self.stem_ks,
-                   ef_ks=self.ef_ks,
-                   ef_block_sizes=self.ef_block_sizes,  
-                   resize_factor=self.resize_factor,
-                   pool_sizes=self.pool_sizes)
+    #    return LegNet(in_ch=self.in_ch,
+    #                stem_ch=self.stem_ch,
+    #                stem_ks=self.stem_ks,
+    #                ef_ks=self.ef_ks,
+    #                ef_block_sizes=self.ef_block_sizes,  
+    #                resize_factor=self.resize_factor,
+    #                pool_sizes=self.pool_sizes)
+        return PWMNet(in_ch=self.in_ch,
+                      stem_ch=self.stem_ch,
+                      stem_ks=self.stem_ks)
