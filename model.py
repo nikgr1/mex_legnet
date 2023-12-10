@@ -223,7 +223,7 @@ class PWMNet(nn.Module):
         
         # self.mapper = MapperBlock(in_features=stem_ch, 
         #                           out_features=stem_ch * 2)
-        self.head = nn.Sequential(nn.Linear(stem_ch * 2, stem_ch * 2),
+        self.head = nn.Sequential(nn.Linear(stem_ch, stem_ch * 2),
                                    nn.BatchNorm1d(stem_ch * 2),
                                    activation(),
                                    nn.Linear(stem_ch * 2, 1))
