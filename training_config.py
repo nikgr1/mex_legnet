@@ -102,3 +102,6 @@ class TrainingConfig:
         return PWMNet(in_ch=self.in_ch,
                       stem_ch=self.stem_ch,
                       stem_ks=self.stem_ks)
+    
+    def switch_testing(self):
+        self.training = False

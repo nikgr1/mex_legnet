@@ -130,9 +130,8 @@ torch.set_float32_matmul_precision('medium') # type: ignore
 
 
 model = LitModel(tr_cfg=train_cfg)
+model.initialize_weights()
 print(parameter_count(model))
-# exit()
-# print(model.model.stem.block[0].weight)
 
 data = SeqDataModule(cfg=train_cfg)
 
@@ -167,6 +166,7 @@ trainer = pl.Trainer(accelerator='gpu',
 
 trainer.fit(model, 
             datamodule=data)
+train_cfg.switch_testing() # does nothing
 model = LitModel.load_from_checkpoint(best_checkpoint_callback.best_model_path, 
                                       tr_cfg=train_cfg)
 

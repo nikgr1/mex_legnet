@@ -19,8 +19,6 @@ class LitModel(pl.LightningModule):
         self.tr_cfg = tr_cfg
         self.max_lr=self.tr_cfg.max_lr
         self.model = self.tr_cfg.get_model()
-        self.model.apply(initialize_weights)
-        self.initialize_stem_with_pwms()
         if self.tr_cfg.pwms_freeze:
             print('Freezing stem conv layer')
             for param in self.model.pwmlike_layer.parameters():
@@ -30,6 +28,10 @@ class LitModel(pl.LightningModule):
         self.metric = AUROC(task="binary")
         self.metric_name = 'auroc'
         self.sigmoid = nn.Sigmoid()
+    
+    def initialize_weights(self):
+        self.model.apply(initialize_weights)
+        self.initialize_stem_with_pwms()
         
     def initialize_stem_with_pwms(self):
         if self.tr_cfg.pwms_path is None:
