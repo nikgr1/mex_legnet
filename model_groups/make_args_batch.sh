@@ -21,10 +21,9 @@ for tf in $tfs; do
 --ref_genome_path=/home/nikgr/hg38/hg38.fa
 --stem_ks=40
 --stem_ch=40
---epoch_num=20
+--epoch_num=10
 --max_lr=0.0025
 --reverse_augment
---use_reverse_channel
 --use_shift
 --max_shift 25 25
 --num_workers 24

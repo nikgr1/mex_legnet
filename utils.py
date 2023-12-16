@@ -110,5 +110,6 @@ class ArgumentParser(argparse.ArgumentParser):
             
 def get_weigths_from_pwm(pwm_df: pd.DataFrame, rev=False, compl=False):
     df = pwm_df.rename(columns=COMPL) if compl else pwm_df
+    df = df[sorted(df.columns, key=lambda nucl: CODES[nucl])]
     pwm = torch.from_numpy(df.values.transpose(1, 0))
     return pwm.flip([1]) if rev else pwm

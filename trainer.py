@@ -19,15 +19,17 @@ class LitModel(pl.LightningModule):
         self.tr_cfg = tr_cfg
         self.max_lr=self.tr_cfg.max_lr
         self.model = self.tr_cfg.get_model()
-        if self.tr_cfg.pwms_freeze:
-            print('Freezing stem conv layer')
-            for param in self.model.pwmlike_layer.parameters():
-                param.requires_grad = False
-        
         self.loss = nn.BCEWithLogitsLoss() 
         self.metric = AUROC(task="binary")
         self.metric_name = 'auroc'
         self.sigmoid = nn.Sigmoid()
+    
+    def set_stem_requires_grad(self, requires_grad=None):
+        if requires_grad is None:
+            requires_grad = self.tr_cfg.pwms_freeze
+        print('Unfreezing' if requires_grad else 'Freezing', 'stem conv layer')
+        for param in self.model.pwmlike_layer.parameters():
+            param.requires_grad = requires_grad
     
     def initialize_weights(self):
         self.model.apply(initialize_weights)
@@ -38,10 +40,13 @@ class LitModel(pl.LightningModule):
             return
         print('Initializing stem conv layer with PWMs...')
         pwms_path = Path(self.tr_cfg.pwms_path)
-        pwm_paths = list(pwms_path.rglob('*.pwm'))
+        pwm_paths = list(pwms_path.rglob('*/*.pwm'))
         pwm_count = len(pwm_paths)
+        if pwm_count == 0:
+            raise Exception('No PWMs were found')
+        print(f'Initializing {pwm_count} PWMs')
         if self.tr_cfg.stem_ch < pwm_count:
-            pwm_paths = pwm_paths[:self.tr_cfg.stem_ch]
+            pwm_paths = pwm_paths[:self.tr_cfg.stem_ch//2]
         pwmlike_weights = self.model.pwmlike_layer.weight
         stem_ks = self.tr_cfg.stem_ks
         with torch.no_grad():
@@ -50,7 +55,6 @@ class LitModel(pl.LightningModule):
                                      sep=' ', 
                                      skiprows=[0], 
                                      names=['A', 'C', 'G', 'T'])
-                pwm_df = pwm_df[sorted(pwm_df.columns, key=lambda nucl: CODES[nucl])]
                 pwm_len = len(pwm_df.index)
                 
                 if self.tr_cfg.pwm_loc == 'middle':
@@ -60,11 +64,13 @@ class LitModel(pl.LightningModule):
                     left = 0
                     right = pwm_len
                 
-                pwmlike_weights[pwm_idx, 0:4, :] = 0
-                pwmlike_weights[pwm_idx, 0:4, left:right] = get_weigths_from_pwm(pwm_df)
-                pwmlike_weights[pwm_idx + pwm_count, 0:4, :] = 0
-                pwmlike_weights[pwm_idx + pwm_count, 0:4, stem_ks-right:stem_ks-left] = \
+                pwmlike_weights[2 * pwm_idx, 0:4, :] = 0
+                pwmlike_weights[2 * pwm_idx, 0:4, left:right] = \
+                    get_weigths_from_pwm(pwm_df)
+                pwmlike_weights[2 * pwm_idx + 1, 0:4, :] = 0
+                pwmlike_weights[2 * pwm_idx + 1, 0:4, left:right] = \
                     get_weigths_from_pwm(pwm_df, rev=True, compl=True)
+                    #stem_ks-right:stem_ks-left
         
         
         

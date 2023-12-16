@@ -131,6 +131,7 @@ torch.set_float32_matmul_precision('medium') # type: ignore
 
 model = LitModel(tr_cfg=train_cfg)
 model.initialize_weights()
+model.set_stem_requires_grad()
 print(parameter_count(model))
 
 data = SeqDataModule(cfg=train_cfg)
@@ -159,10 +160,13 @@ trainer = pl.Trainer(accelerator='gpu',
                      enable_checkpointing=True,
                      devices=[train_cfg.device], 
                      precision='16-mixed', 
-                     max_epochs=train_cfg.epoch_num,
+                     max_epochs=train_cfg.epoch_num // 2,
                      callbacks=[last_checkpoint_callback,  best_checkpoint_callback],
                      gradient_clip_val=1,
                      default_root_dir=dump_dir)
+
+trainer.fit(model, 
+            datamodule=data)
 
 trainer.fit(model, 
             datamodule=data)

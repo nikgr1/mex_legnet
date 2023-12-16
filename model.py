@@ -200,9 +200,8 @@ class PWMBlock(nn.Module):
                         in_channels=self.in_ch,
                         out_channels=self.out_ch,
                         kernel_size=self.ks,
-                        padding='same',
                         bias=False
-                    )
+                    ) #    padding='same',
         
         
     def forward(self, x):
@@ -221,20 +220,25 @@ class PWMNet(nn.Module):
                             out_ch=stem_ch,
                             ks=stem_ks)
         
-        # self.mapper = MapperBlock(in_features=stem_ch, 
-        #                           out_features=stem_ch * 2)
-        self.head = nn.Sequential(nn.Linear(stem_ch, stem_ch * 2),
-                                   nn.BatchNorm1d(stem_ch * 2),
-                                   activation(),
-                                   nn.Linear(stem_ch * 2, 1))
+        self.head = nn.Sequential(nn.Linear(stem_ch // 2, stem_ch),
+                                  nn.BatchNorm1d(stem_ch),
+                                  activation(),
+                                  nn.Linear(stem_ch, stem_ch * 2),
+                                  nn.BatchNorm1d(stem_ch * 2),
+                                  activation(),
+                                  nn.Linear(stem_ch * 2, 1))
         
         self.pwmlike_layer = self.pwm.block
             
     def forward(self, x):
         x = self.pwm(x)
-        # x = self.mapper(x)
         x =  F.adaptive_max_pool1d(x, 1)
         x = x.squeeze(-1)
+        #
+        x = x.unsqueeze(0)
+        x =  F.max_pool1d(x, 2)
+        x = x.squeeze()
+        #
         x = self.head(x)
         x = x.squeeze(-1)
         return x
