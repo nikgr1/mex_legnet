@@ -8,30 +8,56 @@ from training_config import TrainingConfig
 from pathlib import Path
 from Bio import SeqIO
 
+
+splits = ('train', 'val', 'test')
+
+def get_file_name(seq_type: str) -> str:    
+    match seq_type:
+        case 'positives':
+            return 'positives.bed'
+        case 'foreigns':
+            return 'foreigns.bed'
+        case 'random':
+            return 'random_addshift.bed'
+        case 'shades':
+            return 'shades_addshift.bed'
+        case 'shades_one':
+            return 'shades_one.bed'
+        case _:
+            raise Exception('Wrong sequence type')
+
+def get_seq_value(seq_type: str) -> int:
+    match seq_type:
+        case 'positives':
+            return 0
+        case _:
+            return 1
+
 class SeqDataModule(pl.LightningDataModule):
     def __init__(self,
                  cfg: TrainingConfig):
         super().__init__()
         self.cfg = cfg
-        splits = ('train', 'val', 'test')
         paths = (self.cfg.train_path, 
                  self.cfg.valid_path, 
                  self.cfg.test_path)
         self.paths = dict(zip(splits, paths))
         self.ds = {}
         
-        vals_by_seq_types = {'positives': 1}
-        for negative in cfg.negatives:
-            vals_by_seq_types[negative] = 0
+        
         dfs2concat = {split:list() for split in splits}
         columns = ['chr', 'start', 'end']
         for split, path in self.paths.items():
-            for seq_type, value in vals_by_seq_types.items():
-                df = pd.read_csv(Path(path) / (seq_type + '.bed'),
+            if split == 'test':
+                seq_types = ['positives'] + self.cfg.negatives
+            else:
+                seq_types = ['positives'] + self.cfg.negatives_test
+            for seq_type in seq_types:
+                df = pd.read_csv(Path(path) / get_file_name(seq_type),
                                  usecols=range(3),
                                  sep='\t')
                 df.columns = columns
-                df['class_'] = value
+                df['class_'] = get_seq_value(seq_type)
                 dfs2concat[split].append(df)
             
             self.ds[split] = pd.concat(dfs2concat[split])

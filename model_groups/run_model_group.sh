@@ -11,7 +11,7 @@ done
 source /home/nikgr/miniconda3/etc/profile.d/conda.sh
 conda activate legnet
 
-group_cfgs_path=/home/nikgr/mex_legnet/model_groups/$group_name
+group_cfgs_path=/home/nikgr/mex_legnet/model_groups/${group_name%/}
 for cfg in $group_cfgs_path/*
 do
     echo -e $cfg

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 from model import initialize_weights
-from torchmetrics import AUROC
+from torchmetrics import AUROC, AveragePrecision
 
 from pathlib import Path 
 import pandas as pd
@@ -22,18 +22,25 @@ class LitModel(pl.LightningModule):
         self.loss = nn.BCEWithLogitsLoss() 
         self.metric = AUROC(task="binary")
         self.metric_name = 'auroc'
+        # self.metrics = {
+        #     'auprc': AveragePrecision(task="binary"),
+        #     'auroc': AUROC(task="binary"),
+        # }
+        self.metric = AUROC(task="binary")
+        self.metric_name = 'auroc'
         self.sigmoid = nn.Sigmoid()
     
     def set_stem_requires_grad(self, requires_grad=None):
         if requires_grad is None:
-            requires_grad = self.tr_cfg.pwms_freeze
+            requires_grad = not self.tr_cfg.pwms_freeze
         print('Unfreezing' if requires_grad else 'Freezing', 'stem conv layer')
         for param in self.model.pwmlike_layer.parameters():
             param.requires_grad = requires_grad
     
     def initialize_weights(self):
         self.model.apply(initialize_weights)
-        self.initialize_stem_with_pwms()
+        if self.tr_cfg.pwms_path is not None:
+            self.initialize_stem_with_pwms()
         
     def initialize_stem_with_pwms(self):
         if self.tr_cfg.pwms_path is None:
@@ -46,6 +53,7 @@ class LitModel(pl.LightningModule):
             raise Exception('No PWMs were found')
         print(f'Initializing {pwm_count} PWMs')
         if self.tr_cfg.stem_ch < pwm_count:
+            print('Amount of stem channels is less than number of PWMs')
             pwm_paths = pwm_paths[:self.tr_cfg.stem_ch//2]
         pwmlike_weights = self.model.pwmlike_layer.weight
         stem_ks = self.tr_cfg.stem_ks
@@ -97,10 +105,17 @@ class LitModel(pl.LightningModule):
                  on_step=False, 
                  on_epoch=True)
         y_prob = self.sigmoid(y_pred)
+        # y_int = y.int()
         self.metric(y_prob, y)
         self.log('val_' + self.metric_name, 
                  self.metric, 
                  on_epoch=True)
+        # for key, metric in self.metrics.items():
+        #     value = metric(y_prob, y_int)
+        #     self.log('val_' + key, 
+        #              value, 
+        #              on_epoch=True,
+        #              on_step=False)
     
     def test_step(self, batch, _):
         x, y = batch
@@ -112,11 +127,15 @@ class LitModel(pl.LightningModule):
                  on_step=False,
                  on_epoch=True)
         y_prob = self.sigmoid(y_pred)
+        y_int = y.int()
+        # for key, metric in self.metrics.items():
+        #     value = metric(y_prob, y_int)
+        #     self.log('val_' + key, 
+        #          metric, 
+        #          on_epoch=True)
         self.metric(y_prob, y)
-        self.log('test_' + self.metric_name, 
+        self.log('val_' + self.metric_name, 
                  self.metric, 
-                 prog_bar=True, 
-                 on_step=False,
                  on_epoch=True)
         
     def predict_step(self, batch, _):

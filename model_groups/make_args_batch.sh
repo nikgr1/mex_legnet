@@ -11,8 +11,7 @@ mkdir -p $group_name
 for tf in $tfs; do
     exp1=CHS
     exp2=GHTS
-    pwms1=/home/nikgr/MEX/best_20_motif_CHS_GHTS/CHS/LEUTX/THC_0312.Rep-DIANA_0293
-    pwms2=/home/nikgr/MEX/best_20_motif_CHS_GHTS/GHTS/LEUTX/YWK_B_AffSeq_B7_LEUTX
+    pwms=/home/nikgr/MEX/best_20_motif_CHS_GHTS/
     for num in {1..2}; do
         args="--model_dir=/home/nikgr/mex_models/$group_name/$tf-$exp1-$exp2
 --train_path=/home/nikgr/MEX/DATASETS/$exp1/Train/$tf
@@ -28,15 +27,13 @@ for tf in $tfs; do
 --max_shift 25 25
 --num_workers 24
 --negatives foreigns
---pwms_path $pwms1
+--pwms_path $pwms/$exp1
 --pwms_freeze
 --pwm_loc edge"
         echo -e "$args" > $group_name/$tf-$exp1-$exp2.cfg
         tmp=$exp1
         exp1=$exp2
         exp2=$tmp
-        tmp=$pwms1
-        pwms1=$pwms2
-        pwms2=$tmp
     done
 done
+

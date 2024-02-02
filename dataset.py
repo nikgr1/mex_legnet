@@ -53,9 +53,9 @@ class TrainSeqDatasetProb(Dataset):
     
     def __getitem__(self, i):
         entry = self.ds.iloc[i]
-        chrom =  entry.chr
+        chrom = entry.chr
         start = entry.start
-        end =  entry.end
+        end = entry.end
         
         if self.use_shift:
             # we need to determine such max&min values for shift that it won't ruin the slicing step
@@ -152,7 +152,7 @@ class TestSeqDatasetProb(Dataset):
             Training expression value
         """
         entry = self.ds.iloc[i]
-        chrom =  entry.chr
+        chrom = entry.chr
         start = entry.start
         end = entry.end
         # we need to use such shift that it won't ruin the slicing step

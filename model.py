@@ -220,15 +220,17 @@ class PWMNet(nn.Module):
                             out_ch=stem_ch,
                             ks=stem_ks)
         
-        self.head = nn.Sequential(nn.Linear(stem_ch // 2, stem_ch),
-                                  nn.BatchNorm1d(stem_ch),
+        # self.head = nn.Sequential(nn.Linear(stem_ch // 2, stem_ch),
+        #                           nn.BatchNorm1d(stem_ch),
+        #                           activation(),
+        #                           nn.Linear(stem_ch, 1))
+        
+        self.head = nn.Sequential(nn.BatchNorm1d(stem_ch // 2),
                                   activation(),
-                                  nn.Linear(stem_ch, stem_ch * 2),
-                                  nn.BatchNorm1d(stem_ch * 2),
-                                  activation(),
-                                  nn.Linear(stem_ch * 2, 1))
+                                  nn.Linear(stem_ch // 2, 1))
         
         self.pwmlike_layer = self.pwm.block
+        # self.act = activation()
             
     def forward(self, x):
         x = self.pwm(x)

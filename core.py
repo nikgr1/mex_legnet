@@ -7,9 +7,11 @@ import lightning.pytorch as pl
 from datamodule import SeqDataModule
 from test_predict import save_predict
 from trainer import LitModel, TrainingConfig
+from model import LegNet, PWMNet
 from utils import set_global_seed, parameter_count, ArgumentParser
 from lightning.pytorch.callbacks import ModelCheckpoint
 from pathlib import Path 
+from argparse import BooleanOptionalAction
 
 
 
@@ -67,6 +69,9 @@ model_args.add_argument("--pool_sizes",
                         type=int,
                         nargs="+",
                         default=[2, 2, 2, 2])
+model_args.add_argument('--model_type',
+                        type=lambda x: 'LegNet' if x == 'LegNet' else 'PWMNet',
+                        default='LegNet')
 
 scheduler_args =  parser.add_argument_group('scheduler arguments', 
                                             'One cycle scheduler arguments')
@@ -102,7 +107,12 @@ data_args.add_argument("--ref_genome_path",
                        required=True),
 data_args.add_argument('--negatives',
                        type=str, 
-                       choices=('foreigns', 'random', 'shades'), 
+                       choices=('foreigns', 'random', 'shades', 'shades_one'), 
+                       default=['foreigns'], 
+                       nargs='*')
+data_args.add_argument('--negatives_test',
+                       type=str, 
+                       choices=('foreigns', 'random', 'shades', 'shades_one'), 
                        default=['foreigns'], 
                        nargs='*')
 data_args.add_argument('--pwms_path',
@@ -114,10 +124,15 @@ data_args.add_argument('--pwm_loc',
                        nargs='?',
                        const='middle',
                        choices=('middle', 'edge'))
+data_args.add_argument('--test_valid_ds',
+                       type=bool,
+                       action=BooleanOptionalAction, 
+                       default=True)
 
 
 args = parser.parse_args()
-train_cfg = TrainingConfig.from_dict(vars(args), training=True)
+test_valid_ds = args.test_valid_ds
+train_cfg = TrainingConfig.from_dict(vars(args), training=True, exclude=('test_valid_ds', ))
 print(train_cfg)
 
 model_dir = Path(train_cfg.model_dir)
@@ -131,7 +146,8 @@ torch.set_float32_matmul_precision('medium') # type: ignore
 
 model = LitModel(tr_cfg=train_cfg)
 model.initialize_weights()
-model.set_stem_requires_grad()
+if train_cfg.pwms_path is not None:
+    model.set_stem_requires_grad(train_cfg.pwms_path is not None and train_cfg.pwms_freeze)
 print(parameter_count(model))
 
 data = SeqDataModule(cfg=train_cfg)
@@ -153,14 +169,14 @@ best_checkpoint_callback = ModelCheckpoint(
     save_top_k=1,
     monitor="val_auroc",
     mode="max",
-    filename="auroc-{epoch:02d}-{auroc:.2f}",
+    filename="auroc-{epoch:02d}-{val_auroc:.2f}",
 )
 
 trainer = pl.Trainer(accelerator='gpu',
                      enable_checkpointing=True,
                      devices=[train_cfg.device], 
                      precision='16-mixed', 
-                     max_epochs=train_cfg.epoch_num // 2,
+                     max_epochs=train_cfg.epoch_num,
                      callbacks=[last_checkpoint_callback,  best_checkpoint_callback],
                      gradient_clip_val=1,
                      default_root_dir=dump_dir)
@@ -168,14 +184,33 @@ trainer = pl.Trainer(accelerator='gpu',
 trainer.fit(model, 
             datamodule=data)
 
-trainer.fit(model, 
-            datamodule=data)
-train_cfg.switch_testing() # does nothing
-model = LitModel.load_from_checkpoint(best_checkpoint_callback.best_model_path, 
-                                      tr_cfg=train_cfg)
+# train_cfg.switch_testing() # does nothing
+# model = LitModel.load_from_checkpoint(best_checkpoint_callback.best_model_path, 
+#                                       tr_cfg=train_cfg)
 
-df_pred = save_predict(trainer, 
-                       model, 
-                       data,
-                       save_dir=dump_dir, 
-                       pref="new_format")
+# df_pred = save_predict(trainer, 
+#                        model, 
+#                        data,
+#                        save_dir=dump_dir, 
+#                        pref="new_format_test")
+
+tr_cfg = TrainingConfig.from_dict(train_cfg.to_dict())
+for split in ('inside', 'cross'): # cross-experiment or inside experiment
+    print(f'\nTesting {split}-experiment')
+    tr_cfg = tr_cfg.swap_val_test_paths()
+    print(f'Paths in cfg: {tr_cfg.train_path} -> f{tr_cfg.test_path}')
+    
+    for negative in ('random', 'shades', 'foreigns'):
+        print(f'Testing {negative} negatives')
+        tr_cfg = tr_cfg.set_negatives_test(negative)
+        print(f'Negatives in cfg: {negative}')
+        trainer.fit(model, 
+                    datamodule=data)
+        data = SeqDataModule(cfg=tr_cfg)
+        model = LitModel.load_from_checkpoint(best_checkpoint_callback.best_model_path, 
+                                              tr_cfg=tr_cfg)
+        df_pred = save_predict(trainer, 
+                               model, 
+                               data,
+                               save_dir=dump_dir, 
+                               pref=f'new_format_{split}_{negative}')
