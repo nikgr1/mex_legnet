@@ -29,9 +29,9 @@ def get_file_name(seq_type: str) -> str:
 def get_seq_value(seq_type: str) -> int:
     match seq_type:
         case 'positives':
-            return 0
-        case _:
             return 1
+        case _:
+            return 0
 
 class SeqDataModule(pl.LightningDataModule):
     def __init__(self,
@@ -49,9 +49,10 @@ class SeqDataModule(pl.LightningDataModule):
         columns = ['chr', 'start', 'end']
         for split, path in self.paths.items():
             if split == 'test':
-                seq_types = ['positives'] + self.cfg.negatives
-            else:
                 seq_types = ['positives'] + self.cfg.negatives_test
+            else:
+                seq_types = ['positives'] + self.cfg.negatives
+            print(seq_types)
             for seq_type in seq_types:
                 df = pd.read_csv(Path(path) / get_file_name(seq_type),
                                  usecols=range(3),
@@ -67,10 +68,14 @@ class SeqDataModule(pl.LightningDataModule):
     
     def ds_statistics(self):
         print('Dataset statistics')
-        print('Negatives:', ', '.join(self.cfg.negatives))
         for split, ds in self.ds.items():
+            if split == 'test':
+                seq_types = self.cfg.negatives
+            else:
+                seq_types = self.cfg.negatives_test
             count = len(ds['class_'])
             print('Split:', split, count, 'objects')
+            print('Negatives:', ', '.join(seq_types))
             s = ds['class_'].value_counts()
             print('\t| '.join(f'{i}: {v} ({v*100/count:.2f} %)' for i, v in s.items()))
         

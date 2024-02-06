@@ -134,6 +134,8 @@ args = parser.parse_args()
 test_valid_ds = args.test_valid_ds
 train_cfg = TrainingConfig.from_dict(vars(args), training=True, exclude=('test_valid_ds', ))
 print(train_cfg)
+train_cfg.print_info()
+exit()
 
 model_dir = Path(train_cfg.model_dir)
 model_dir.mkdir(exist_ok=True,
@@ -194,23 +196,20 @@ trainer.fit(model,
 #                        save_dir=dump_dir, 
 #                        pref="new_format_test")
 
-tr_cfg = TrainingConfig.from_dict(train_cfg.to_dict())
+tr_cfg_testing = TrainingConfig.from_dict(train_cfg.to_dict())
 for split in ('inside', 'cross'): # cross-experiment or inside experiment
     print(f'\nTesting {split}-experiment')
-    tr_cfg = tr_cfg.swap_val_test_paths()
-    print(f'Paths in cfg: {tr_cfg.train_path} -> f{tr_cfg.test_path}')
+    tr_cfg_testing = tr_cfg_testing.swap_val_test_paths()
+    print(f'Paths in cfg: {tr_cfg_testing.train_path} -> f{tr_cfg_testing.test_path}')
     
     for negative in ('random', 'shades', 'foreigns'):
-        print(f'Testing {negative} negatives')
-        tr_cfg = tr_cfg.set_negatives_test(negative)
-        print(f'Negatives in cfg: {negative}')
-        trainer.fit(model, 
-                    datamodule=data)
-        data = SeqDataModule(cfg=tr_cfg)
-        model = LitModel.load_from_checkpoint(best_checkpoint_callback.best_model_path, 
-                                              tr_cfg=tr_cfg)
+        tr_cfg_testing = tr_cfg_testing.set_negatives_test(negative)
+        train_cfg.print_info()
+        data_testing = SeqDataModule(cfg=tr_cfg_testing)
+        model_testing = LitModel.load_from_checkpoint(best_checkpoint_callback.best_model_path, 
+                                              tr_cfg=tr_cfg_testing)
         df_pred = save_predict(trainer, 
-                               model, 
-                               data,
+                               model_testing, 
+                               data_testing,
                                save_dir=dump_dir, 
                                pref=f'new_format_{split}_{negative}')

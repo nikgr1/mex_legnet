@@ -49,15 +49,15 @@ class TrainingConfig:
                             parents=True)
             self.dump()
         
-        if self.pwms_path is not None:
-            pwms_path = Path(self.pwms_path)
-            pwm_paths = list(pwms_path.rglob('*/*.pwm'))
-            pwm_count = len(pwm_paths)
-            if pwm_count == 0:
-                raise Exception('No PWMs were found')
-        
-            self.stem_ch = pwm_count * 2
-            print(f'Setting stem_ch to {self.stem_ch}, path: {self.pwms_path}')
+            if self.pwms_path is not None:
+                pwms_path = Path(self.pwms_path)
+                pwm_paths = list(pwms_path.rglob('*/*.pwm'))
+                pwm_count = len(pwm_paths)
+                if pwm_count == 0:
+                    raise Exception('No PWMs were found')
+            
+                self.stem_ch = pwm_count * 2
+                print(f'Setting stem_ch to {self.stem_ch}, path: {self.pwms_path}')
         
     
     def check_params(self): 
@@ -122,7 +122,7 @@ class TrainingConfig:
                 stem_ks=self.stem_ks)
     
     def switch_testing(self):
-        self.training = False
+        self.training = not self.training
         
     def swap_val_test_paths(self) -> 'TrainingConfig':
         swapped = self.to_dict()
@@ -133,6 +133,15 @@ class TrainingConfig:
     def set_negatives_test(self, negatives) -> 'TrainingConfig':
         switched = self.to_dict()
         if isinstance(negatives, str):
-            negatives = list(negatives)
+            negatives = [negatives]
         switched['negatives_test'] = negatives
         return self.from_dict(switched)
+    
+    def print_info(self):
+        print(f'{"TrainingConfig":-^64}')
+        print(f'{"Train":16}', f'{self.train_path:48}', sep='')
+        print(f'{"Valid":16}', f'{self.valid_path:48}', sep='')
+        print(f'{"Test":16}', f'{self.test_path:48}', sep='')
+        print(f'{"Negatives":16}', f'{"".join(self.negatives):48}', sep='')
+        print(f'{"Negatives test":16}', f'{"".join(self.negatives_test):48}', sep='')
+        print('-' * 64)
