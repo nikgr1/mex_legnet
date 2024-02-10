@@ -108,13 +108,11 @@ data_args.add_argument("--ref_genome_path",
 data_args.add_argument('--negatives',
                        type=str, 
                        choices=('foreigns', 'random', 'shades', 'shades_one'), 
-                       default=['foreigns'], 
-                       nargs='*')
+                       default='foreigns')
 data_args.add_argument('--negatives_test',
                        type=str, 
                        choices=('foreigns', 'random', 'shades', 'shades_one'), 
-                       default=['foreigns'], 
-                       nargs='*')
+                       default='foreigns')
 data_args.add_argument('--pwms_path',
                        type=str)
 data_args.add_argument('--pwms_freeze',

@@ -34,8 +34,8 @@ class TrainingConfig:
     valid_batch_size: int
     num_workers: int
     training: bool
-    negatives: list[str]
-    negatives_test: list[str]
+    negatives: str
+    negatives_test: str
     pwms_path: str | None
     pwms_freeze: int
     pwm_loc: str
@@ -130,11 +130,9 @@ class TrainingConfig:
         swapped['test_path'] = self.valid_path
         return self.from_dict(swapped)
     
-    def set_negatives_test(self, negatives) -> 'TrainingConfig':
+    def set_negatives_test(self, negatives_test: str) -> 'TrainingConfig':
         switched = self.to_dict()
-        if isinstance(negatives, str):
-            negatives = [negatives]
-        switched['negatives_test'] = negatives
+        switched['negatives_test'] = negatives_test
         return self.from_dict(switched)
     
     def print_info(self):
@@ -142,6 +140,6 @@ class TrainingConfig:
         print(f'{"Train":16}', f'{self.train_path:48}', sep='')
         print(f'{"Valid":16}', f'{self.valid_path:48}', sep='')
         print(f'{"Test":16}', f'{self.test_path:48}', sep='')
-        print(f'{"Negatives":16}', f'{"".join(self.negatives):48}', sep='')
-        print(f'{"Negatives test":16}', f'{"".join(self.negatives_test):48}', sep='')
+        print(f'{"Negatives":16}', f'{self.negatives:48}', sep='')
+        print(f'{"Negatives test":16}', f'{self.negatives_test:48}', sep='')
         print('-' * 64)

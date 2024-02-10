@@ -48,10 +48,7 @@ class SeqDataModule(pl.LightningDataModule):
         
         columns = ['chr', 'start', 'end']
         for split, path in self.paths.items():
-            if split == 'test':
-                seq_types = ['positives'] + self.cfg.negatives_test
-            else:
-                seq_types = ['positives'] + self.cfg.negatives
+            seq_types = ['positives', self.cfg.negatives_test if split == 'test' else self.cfg.negatives]
             print('>>>', split, seq_types)
             dfs2concat = []
             for seq_type in seq_types:
@@ -71,13 +68,10 @@ class SeqDataModule(pl.LightningDataModule):
     def ds_statistics(self):
         print('Dataset statistics')
         for split, ds in self.ds.items():
-            if split == 'test':
-                seq_types = self.cfg.negatives_test
-            else:
-                seq_types = self.cfg.negatives
+            seq_types = ['positives', self.cfg.negatives_test if split == 'test' else self.cfg.negatives]
             count = len(ds['class_'])
             print('Split:', split, count, 'objects')
-            print('Negatives:', ', '.join(seq_types))
+            print('Sequence types:', ', '.join(seq_types))
             s = ds['class_'].value_counts()
             print('\t| '.join(f'{i}: {v} ({v*100/count:.2f} %)' for i, v in s.items()))
         
