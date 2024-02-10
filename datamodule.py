@@ -9,7 +9,7 @@ from pathlib import Path
 from Bio import SeqIO
 
 
-splits = ('train', 'val', 'test')
+splits = ('train', 'valid', 'test')
 
 def get_file_name(seq_type: str) -> str:    
     match seq_type:
@@ -32,6 +32,7 @@ def get_seq_value(seq_type: str) -> int:
             return 1
         case _:
             return 0
+        
 
 class SeqDataModule(pl.LightningDataModule):
     def __init__(self,
@@ -45,23 +46,24 @@ class SeqDataModule(pl.LightningDataModule):
         self.ds = {}
         
         
-        dfs2concat = {split:list() for split in splits}
         columns = ['chr', 'start', 'end']
         for split, path in self.paths.items():
             if split == 'test':
                 seq_types = ['positives'] + self.cfg.negatives_test
             else:
                 seq_types = ['positives'] + self.cfg.negatives
-            print(seq_types)
+            print('>>>', split, seq_types)
+            dfs2concat = []
             for seq_type in seq_types:
+                print('<', Path(path) / get_file_name(seq_type))
                 df = pd.read_csv(Path(path) / get_file_name(seq_type),
                                  usecols=range(3),
                                  sep='\t')
                 df.columns = columns
                 df['class_'] = get_seq_value(seq_type)
-                dfs2concat[split].append(df)
+                dfs2concat.append(df)
             
-            self.ds[split] = pd.concat(dfs2concat[split])
+            self.ds[split] = pd.concat(dfs2concat)
             
         self.ds_statistics()
         self.ref_genome = SeqIO.to_dict(SeqIO.parse(self.cfg.ref_genome_path, 'fasta'))
@@ -70,9 +72,9 @@ class SeqDataModule(pl.LightningDataModule):
         print('Dataset statistics')
         for split, ds in self.ds.items():
             if split == 'test':
-                seq_types = self.cfg.negatives
-            else:
                 seq_types = self.cfg.negatives_test
+            else:
+                seq_types = self.cfg.negatives
             count = len(ds['class_'])
             print('Split:', split, count, 'objects')
             print('Negatives:', ', '.join(seq_types))
@@ -96,7 +98,7 @@ class SeqDataModule(pl.LightningDataModule):
                           drop_last=True) 
     
     def val_dataloader(self):
-        valid_ds = TestSeqDatasetProb(self.ds['val'], 
+        valid_ds = TestSeqDatasetProb(self.ds['valid'], 
                                   use_reverse_channel=self.cfg.use_reverse_channel,
                                   shift=0,
                                   reverse=False,

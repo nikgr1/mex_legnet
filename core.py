@@ -135,7 +135,6 @@ test_valid_ds = args.test_valid_ds
 train_cfg = TrainingConfig.from_dict(vars(args), training=True, exclude=('test_valid_ds', ))
 print(train_cfg)
 train_cfg.print_info()
-exit()
 
 model_dir = Path(train_cfg.model_dir)
 model_dir.mkdir(exist_ok=True,
