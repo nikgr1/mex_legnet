@@ -8,11 +8,12 @@ done
 [ -z "$device" ] && exit
 [ -z "$group_name" ] && exit
 
-source /home/nikgr/miniconda3/etc/profile.d/conda.sh
+source ../platform_imports.sh
+source $path_to_base/miniconda3/etc/profile.d/conda.sh
 conda activate legnet
 
-log_dir=/home/nikgr/mex_legnet/model_groups_three_LOGS/${group_name%/}
-group_cfgs_path=/home/nikgr/mex_legnet/model_groups_three/${group_name%/}
+log_dir=$path_to_base/mex_legnet/model_groups_three_LOGS/${group_name%/}
+group_cfgs_path=$path_to_base/mex_legnet/model_groups_three/${group_name%/}
 
 mkdir -p $log_dir
 log_ver=$(ls -1 | wc -l)
@@ -21,5 +22,5 @@ let "log_ver++"
 for cfg in $group_cfgs_path/*
 do
     echo -e $cfg
-    python /home/nikgr/mex_legnet/core.py --device $device @$cfg | tee -a $log_dir/${log_ver}.txt
+    python $path_to_base/mex_legnet/core.py --device $device @$cfg | tee -a $log_dir/${log_ver}.txt
 done
