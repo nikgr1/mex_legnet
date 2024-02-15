@@ -1,0 +1,1 @@
+export path_to_base=/home/dpenzar/nikgr
