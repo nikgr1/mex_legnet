@@ -146,7 +146,7 @@ torch.set_float32_matmul_precision('medium') # type: ignore
 model = LitModel(tr_cfg=train_cfg)
 model.initialize_weights()
 if train_cfg.pwms_path is not None:
-    model.set_stem_requires_grad(train_cfg.pwms_path is not None and train_cfg.pwms_freeze)
+    model.set_stem_requires_grad(not train_cfg.pwms_freeze)
 print(parameter_count(model))
 
 data = SeqDataModule(cfg=train_cfg)

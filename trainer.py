@@ -19,7 +19,7 @@ class LitModel(pl.LightningModule):
         self.tr_cfg = tr_cfg
         self.max_lr=self.tr_cfg.max_lr
         self.model = self.tr_cfg.get_model()
-        self.loss = nn.BCEWithLogitsLoss() 
+        self.loss = nn.BCEWithLogitsLoss()
         self.metric = AUROC(task="binary")
         self.metric_name = 'auroc'
         # self.metrics = {
@@ -30,10 +30,33 @@ class LitModel(pl.LightningModule):
         self.metric_name = 'auroc'
         self.sigmoid = nn.Sigmoid()
     
+    def calc_ic_vec(self, pwm_tensor):
+        # Assume 'pwm_tensor' is a PyTorch tensor with shape (batch_size, 4, pwm_length)
+        batch_size, num_nucleotides, pwm_length = pwm_tensor.shape
+        
+        shape = (batch_size, pwm_length)
+        ic_vec = torch.zeros(shape, requires_grad = False)
+
+        for i in range(batch_size):
+            for j in range(pwm_length):
+                nucleotide_types = pwm_tensor[i, 0:4, j].squeeze()  # (4,) tensor
+                probs = torch.softmax(nucleotide_types, dim=0)  # probability distribution over the 4 nucleotide types
+                ic = -torch.sum(probs * torch.log2(probs))  # calculate information content
+                ic_vec[i, j] = 2 - ic.item()
+        return ic_vec.to(self.tr_cfg.device)
+    
+    def calc_scale_vec(self, ic_vec, transform=None, shift=1):
+        if transform is None:
+            transform = nn.ReLU()
+        tensor = transform(ic_vec - shift)
+        tensor = torch.where(tensor > 0, tensor + shift, tensor)
+        tensor.requires_grad = False
+        return tensor.to(self.tr_cfg.device)
+    
     def set_stem_requires_grad(self, requires_grad=None):
         if requires_grad is None:
             requires_grad = not self.tr_cfg.pwms_freeze
-        print('Unfreezing' if requires_grad else 'Freezing', 'stem conv layer')
+        print('<3> Unfreezing' if requires_grad else 'Freezing', 'stem conv layer', f'{requires_grad=}')
         for param in self.model.pwmlike_layer.parameters():
             param.requires_grad = requires_grad
     
@@ -45,15 +68,14 @@ class LitModel(pl.LightningModule):
     def initialize_stem_with_pwms(self):
         if self.tr_cfg.pwms_path is None:
             return
-        print('Initializing stem conv layer with PWMs...')
         pwms_path = Path(self.tr_cfg.pwms_path)
         pwm_paths = list(pwms_path.rglob('*/*.pwm'))
         pwm_count = len(pwm_paths)
         if pwm_count == 0:
             raise Exception('No PWMs were found')
-        print(f'Initializing {pwm_count} PWMs')
-        if self.tr_cfg.stem_ch < pwm_count:
-            print('Amount of stem channels is less than number of PWMs')
+        print(f'<1> Initializing stem conv layer with {pwm_count} PWMs')
+        if self.tr_cfg.stem_ch//2 < pwm_count:
+            print('<1> Amount of stem channels is less than number of PWMs')
             pwm_paths = pwm_paths[:self.tr_cfg.stem_ch//2]
         pwmlike_weights = self.model.pwmlike_layer.weight
         stem_ks = self.tr_cfg.stem_ks
@@ -79,6 +101,29 @@ class LitModel(pl.LightningModule):
                 pwmlike_weights[2 * pwm_idx + 1, 0:4, left:right] = \
                     get_weigths_from_pwm(pwm_df, rev=True, compl=True)
                     #stem_ks-right:stem_ks-left
+            print('<2> Copy & freeze pwmlike_weights')
+            self.goal_weights = pwmlike_weights.clone().detach().to(self.tr_cfg.device)
+            self.goal_weights.requires_grad = False
+            print('<3> Calculate scale tensor from information content')
+            ic_tensor = self.calc_ic_vec(pwmlike_weights)
+            self.scale_tensor = self.calc_scale_vec(ic_tensor, shift=1.5)
+            # print(self.scale_tensor[0, :])
+            print('<4> Done')
+            # Testing
+            # tmp = pwmlike_weights[:, 0, :]
+            # pwmlike_weights[:, 0, :] = pwmlike_weights[:, 1, :]
+            # pwmlike_weights[:, 1, :] = pwmlike_weights[:, 2, :]
+            # pwmlike_weights[:, 2, :] = pwmlike_weights[:, 3, :]
+            # pwmlike_weights[:, 3, :] = tmp
+            # mse = self.calc_additional_loss()
+            # print(mse)
+    
+    def calc_additional_loss(self):
+        # MSE mean across nucleotides (batch_size, num_nucleotides, pwm_length) -> (batch_size, pwm_length)
+        mse = ((self.model.pwmlike_layer.weight - self.goal_weights) ** 2).mean(dim=(1, ))
+        # Scale the MSE by the scaling tensor
+        scaled_mse = mse * self.scale_tensor
+        return scaled_mse.mean()
         
         
         
@@ -87,6 +132,8 @@ class LitModel(pl.LightningModule):
         y_pred = self.model(X)
 
         loss = self.loss(y_pred, y)
+        add_loss = self.calc_additional_loss() * 10_000
+        sum_loss = loss + add_loss
         
         self.log("train_loss", 
                  loss, 
@@ -94,7 +141,19 @@ class LitModel(pl.LightningModule):
                  on_step=False, 
                  on_epoch=True, 
                  logger=True)
-        return loss
+        self.log("train_add_loss", 
+                 add_loss, 
+                 prog_bar=True, 
+                 on_step=False, 
+                 on_epoch=True, 
+                 logger=True)
+        self.log("train_sum_loss", 
+                 sum_loss, 
+                 prog_bar=True, 
+                 on_step=False, 
+                 on_epoch=True, 
+                 logger=True)
+        return sum_loss
     
     def validation_step(self, batch, _):
         x, y = batch
