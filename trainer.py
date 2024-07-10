@@ -31,7 +31,7 @@ class LitModel(pl.LightningModule):
         self.sigmoid = nn.Sigmoid()
     
     def calc_ic_vec(self, pwm_tensor):
-        # Assume 'pwm_tensor' is a PyTorch tensor with shape (batch_size, 4, pwm_length)
+        # Assume 'pwm_tensor' is a tensor with shape (batch_size, 4, pwm_length)
         batch_size, num_nucleotides, pwm_length = pwm_tensor.shape
         
         shape = (batch_size, pwm_length)
